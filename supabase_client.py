@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from supabase import create_client
+from supabase.lib.client_options import ClientOptions
 
 from config import cfg
 
@@ -22,7 +23,11 @@ class SupabaseClient:
     def __init__(self):
         if not cfg.SUPABASE_URL or not cfg.SUPABASE_KEY:
             raise ValueError("Set SUPABASE_URL and SUPABASE_KEY env vars")
-        self.client = create_client(cfg.SUPABASE_URL, cfg.SUPABASE_KEY)
+        self.client = create_client(
+            cfg.SUPABASE_URL,
+            cfg.SUPABASE_KEY,
+            options=ClientOptions(postgrest_client_timeout=60),
+        )
 
     def fetch_existing_products(self, source: str) -> dict[str, dict[str, Any]]:
         result: dict[str, dict[str, Any]] = {}
@@ -60,6 +65,7 @@ class SupabaseClient:
                     logger.warning("Batch upsert attempt %d/3 failed: %s", attempt + 1, e)
                     time.sleep(2 ** (attempt + 1))
             if batch_ok:
+                time.sleep(0.4)
                 continue
             # Fall back to single-row upserts (avoids statement timeout on vector batches)
             logger.warning("Falling back to single-row upsert for batch %d", i + 1)
